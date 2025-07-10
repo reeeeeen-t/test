@@ -90,7 +90,6 @@ for r in range(ROWS):
 
 # リセットボタン
 if st.button("リセット"):
-    for key in ["board", "revealed", "game_over", "win"]:
-        if key in st.session_state:
-            del st.session_state[key]
-    st.experimental_rerun()
+    # セッション状態をリセット
+    st.session_state.clear()  # すべてのセッション状態をクリア
+    st.experimental_rerun()  # アプリを再起動
