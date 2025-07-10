@@ -70,19 +70,21 @@ cols = st.columns(COLS)
 for r in range(ROWS):
     for c in range(COLS):
         with cols[c]:
+            # ボタンに一意のkeyを追加
+            button_key = f"{r}_{c}"
             if st.session_state.game_over or st.session_state.win:
                 # ゲーム終了時は地雷も表示
                 if board[r, c] == -1:
-                    st.button("💣", disabled=True)
+                    st.button("💣", disabled=True, key=button_key)
                 elif revealed[r, c]:
-                    st.button(str(board[r, c]) if board[r, c] > 0 else "", disabled=True)
+                    st.button(str(board[r, c]) if board[r, c] > 0 else "", disabled=True, key=button_key)
                 else:
-                    st.button("", disabled=True)
+                    st.button("", disabled=True, key=button_key)
             else:
                 if revealed[r, c]:
-                    st.button(str(board[r, c]) if board[r, c] > 0 else "", disabled=True)
+                    st.button(str(board[r, c]) if board[r, c] > 0 else "", disabled=True, key=button_key)
                 else:
-                    if st.button("", key=f"{r}_{c}"):
+                    if st.button("", key=button_key):
                         reveal_cell(r, c)
                         check_win()
 
