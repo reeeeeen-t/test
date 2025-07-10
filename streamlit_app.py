@@ -1,28 +1,94 @@
 import streamlit as st
-import random
+import numpy as np
 
-# タイトル
-st.title("🪨✌️📄 ジャンケンゲーム")
+# 初期設定
+ROWS, COLS = 8, 8
+MINES_COUNT = 10
 
-# 選択肢
-choices = ["グー", "チョキ", "パー"]
-user_choice = st.radio("あなたの手を選んでください", choices, horizontal=True)
+# セッション状態の初期化
+if "board" not in st.session_state:
+    # -1 は地雷、0以上は周囲の地雷数
+    board = np.zeros((ROWS, COLS), dtype=int)
+    # 地雷をランダム配置
+    mines = np.random.choice(ROWS * COLS, MINES_COUNT, replace=False)
+    for m in mines:
+        r, c = divmod(m, COLS)
+        board[r, c] = -1
 
-# コンピューターの手をランダムに決定
-if st.button("勝負！"):
-    computer_choice = random.choice(choices)
+    # 周囲の地雷数をカウント
+    for r in range(ROWS):
+        for c in range(COLS):
+            if board[r, c] == -1:
+                continue
+            count = 0
+            for dr in [-1, 0, 1]:
+                for dc in [-1, 0, 1]:
+                    nr, nc = r + dr, c + dc
+                    if 0 <= nr < ROWS and 0 <= nc < COLS:
+                        if board[nr, nc] == -1:
+                            count += 1
+            board[r, c] = count
+    st.session_state.board = board
+    st.session_state.revealed = np.zeros((ROWS, COLS), dtype=bool)
+    st.session_state.game_over = False
+    st.session_state.win = False
 
-    # 勝敗判定
-    if user_choice == computer_choice:
-        result = "あいこ！"
-    elif (user_choice == "グー" and computer_choice == "チョキ") or \
-         (user_choice == "チョキ" and computer_choice == "パー") or \
-         (user_choice == "パー" and computer_choice == "グー"):
-        result = "あなたの勝ち！ 🎉"
-    else:
-        result = "あなたの負け... 😢"
+board = st.session_state.board
+revealed = st.session_state.revealed
 
-    # 結果表示
-    st.write(f"あなたの手：{user_choice}")
-    st.write(f"コンピューターの手：{computer_choice}")
-    st.subheader(result)
+st.title("💣 マインスイーパー")
+
+def reveal_cell(r, c):
+    if st.session_state.game_over:
+        return
+    if revealed[r, c]:
+        return
+    revealed[r, c] = True
+    if board[r, c] == -1:
+        st.session_state.game_over = True
+        st.error("💥 地雷を踏みました！ゲームオーバー！")
+        return
+    elif board[r, c] == 0:
+        # 周囲の0のセルも再帰的に開く
+        for dr in [-1, 0, 1]:
+            for dc in [-1, 0, 1]:
+                nr, nc = r + dr, c + dc
+                if 0 <= nr < ROWS and 0 <= nc < COLS:
+                    if not revealed[nr, nc]:
+                        reveal_cell(nr, nc)
+
+def check_win():
+    # 地雷以外の全セルが開かれたら勝ち
+    total_cells = ROWS * COLS
+    opened_cells = np.sum(revealed)
+    if opened_cells == total_cells - MINES_COUNT:
+        st.session_state.win = True
+        st.success("🎉 おめでとう！地雷を全て避けました！")
+
+# グリッド表示
+cols = st.columns(COLS)
+for r in range(ROWS):
+    for c in range(COLS):
+        with cols[c]:
+            if st.session_state.game_over or st.session_state.win:
+                # ゲーム終了時は地雷も表示
+                if board[r, c] == -1:
+                    st.button("💣", disabled=True)
+                elif revealed[r, c]:
+                    st.button(str(board[r, c]) if board[r, c] > 0 else "", disabled=True)
+                else:
+                    st.button("", disabled=True)
+            else:
+                if revealed[r, c]:
+                    st.button(str(board[r, c]) if board[r, c] > 0 else "", disabled=True)
+                else:
+                    if st.button("", key=f"{r}_{c}"):
+                        reveal_cell(r, c)
+                        check_win()
+
+# リセットボタン
+if st.button("リセット"):
+    for key in ["board", "revealed", "game_over", "win"]:
+        if key in st.session_state:
+            del st.session_state[key]
+    st.experimental_rerun()
