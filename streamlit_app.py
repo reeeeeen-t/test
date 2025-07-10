@@ -5,94 +5,73 @@ import random
 SUITS = ['♠', '♥', '♣', '♦']
 RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
 
-# カードのデッキを作成
+# デッキを作成
 def create_deck():
-    return [f'{rank}{suit}' for suit in SUITS for rank in RANKS]
+    deck = [f'{rank}{suit}' for suit in SUITS for rank in RANKS]
+    deck *= 2  # ペアを作るために2セット
+    random.shuffle(deck)  # シャッフルしてランダムに並べる
+    return deck
 
 # ゲームの初期化
 def initialize_game():
     deck = create_deck()
-    random.shuffle(deck)
-    
-    # 七のカードを最初に出す
-    sevens = [card for card in deck if card.startswith('7')]
-    if len(sevens) > 0:
-        # プレイヤーに七のカードを配る
-        player_hand = [sevens.pop() for _ in range(7)]
-    else:
-        # 七のカードがなければ再シャッフル
-        return initialize_game()
-    
-    return deck, player_hand, sevens
+    board = ['🃏'] * len(deck)  # カードはすべて裏向き
+    return deck, board, []
 
-# カードの出し方
-def can_play(card, table_cards):
-    if not table_cards:
-        return True  # 最初はどのカードでも置ける
-    top_card = table_cards[-1]
-    rank_order = RANKS.index(card[:-1])  # カードのランク部分
-    top_rank_order = RANKS.index(top_card[:-1])
-    return abs(rank_order - top_rank_order) == 1  # 1つ隣のカードのみ出せる
+# プレイヤーがカードをめくるアクション
+def flip_card(card_idx, board, deck, flipped_cards):
+    if card_idx not in flipped_cards:
+        flipped_cards.append(card_idx)
+        board[card_idx] = deck[card_idx]
+    return flipped_cards
+
+# 勝利判定
+def check_win(board):
+    return '🃏' not in board  # すべてのカードが表向きであれば勝ち
 
 # ストリームリットのインターフェース
 def main():
-    st.title("七ならべ (Seven in a Row)")
+    st.title("真剣衰弱 (Memory Game)")
 
+    # ゲームの初期化
     if 'deck' not in st.session_state:
-        st.session_state.deck, st.session_state.player_hand, st.session_state.sevens = initialize_game()
-        st.session_state.table_cards = []  # テーブル上のカード
+        st.session_state.deck, st.session_state.board, st.session_state.flipped_cards = initialize_game()
+        st.session_state.matched_pairs = 0
         st.session_state.game_over = False
 
-    st.write("**あなたの手札**:")
-    st.write(st.session_state.player_hand)
-
-    st.write("**テーブル上のカード**:")
-    st.write(st.session_state.table_cards)
-
+    # ゲームの進行
     if st.session_state.game_over:
-        st.write("ゲーム終了！")
+        st.success("おめでとうございます！すべてのペアを見つけました！")
         return
 
-    # 最初に出すカードは「七」のカード
-    sevens_in_hand = [card for card in st.session_state.player_hand if card.startswith('7')]
-    
-    if len(sevens_in_hand) > 0:
-        # プレイヤーが「七」のカードを出せる
-        card_to_play = st.selectbox("出す七のカードを選んでください", sevens_in_hand, key="seven_card_select")
-        if st.button("カードを出す", key="play_seven_button"):
-            st.session_state.player_hand.remove(card_to_play)
-            st.session_state.table_cards.append(card_to_play)
-            st.success(f"カード {card_to_play} を出しました！")
-    else:
-        st.warning("七のカードを出してください！")
+    # ボードの表示
+    num_cards = len(st.session_state.board)
+    cols = st.columns(4)  # 4列にカードを配置
 
-    # プレイヤーが隣り合うカードを出す
-    if len(st.session_state.table_cards) > 0:
-        last_card = st.session_state.table_cards[-1]
-        valid_cards = [card for card in st.session_state.player_hand if can_play(card, st.session_state.table_cards)]
-        
-        if valid_cards:
-            card_to_play = st.selectbox("隣り合うカードを選んでください", valid_cards, key="valid_card_select")
-            if st.button("カードを出す", key="play_valid_button"):
-                st.session_state.player_hand.remove(card_to_play)
-                st.session_state.table_cards.append(card_to_play)
-                st.success(f"カード {card_to_play} を出しました！")
-        else:
-            st.warning("隣り合うカードを選んでください。")
+    for i in range(num_cards):
+        with cols[i % 4]:  # 4列の中で順番に配置
+            if st.button(st.session_state.board[i], key=f'card_{i}'):
+                if i not in st.session_state.flipped_cards:
+                    # カードをめくる
+                    st.session_state.flipped_cards = flip_card(i, st.session_state.board, st.session_state.deck, st.session_state.flipped_cards)
 
-    # プレイヤーがカードを引くアクション
-    if st.button("カードを引く", key="draw_card_button"):
-        if len(st.session_state.deck) > 0:
-            drawn_card = st.session_state.deck.pop()
-            st.session_state.player_hand.append(drawn_card)
-            st.success(f"カード {drawn_card} を引きました！")
-        else:
-            st.warning("デッキにカードがありません。")
+                    # めくったカードが2枚になったらペアチェック
+                    if len(st.session_state.flipped_cards) == 2:
+                        card1_idx, card2_idx = st.session_state.flipped_cards
+                        if st.session_state.deck[card1_idx] == st.session_state.deck[card2_idx]:
+                            st.session_state.matched_pairs += 1
+                            st.session_state.board[card1_idx] = st.session_state.deck[card1_idx]
+                            st.session_state.board[card2_idx] = st.session_state.deck[card2_idx]
+                            st.session_state.flipped_cards = []  # カードをリセット
+                            if check_win(st.session_state.board):
+                                st.session_state.game_over = True  # ゲーム終了
+                        else:
+                            # ペアが一致しない場合、少し待って裏返す
+                            st.session_state.flipped_cards = []
 
-    # 勝利判定
-    if len(st.session_state.player_hand) == 0:
-        st.session_state.game_over = True
-        st.success("おめでとうございます！あなたは勝ちました！")
+    # ゲーム状況の表示
+    st.write(f"一致したペア: {st.session_state.matched_pairs}")
+    st.write(f"残りのペア: {(num_cards // 2) - st.session_state.matched_pairs}")
 
 if __name__ == "__main__":
     main()
