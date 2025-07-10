@@ -13,8 +13,17 @@ def create_deck():
 def initialize_game():
     deck = create_deck()
     random.shuffle(deck)
-    player_hand = [deck.pop() for _ in range(7)]  # プレイヤーに7枚配る
-    return deck, player_hand
+    
+    # 七のカードを最初に出す
+    sevens = [card for card in deck if card.startswith('7')]
+    if len(sevens) > 0:
+        # プレイヤーに七のカードを配る
+        player_hand = [sevens.pop() for _ in range(7)]
+    else:
+        # 七のカードがなければ再シャッフル
+        return initialize_game()
+    
+    return deck, player_hand, sevens
 
 # カードの出し方
 def can_play(card, table_cards):
@@ -30,7 +39,7 @@ def main():
     st.title("七ならべ (Seven in a Row)")
 
     if 'deck' not in st.session_state:
-        st.session_state.deck, st.session_state.player_hand = initialize_game()
+        st.session_state.deck, st.session_state.player_hand, st.session_state.sevens = initialize_game()
         st.session_state.table_cards = []  # テーブル上のカード
         st.session_state.game_over = False
 
@@ -44,15 +53,32 @@ def main():
         st.write("ゲーム終了！")
         return
 
-    # プレイヤーがカードを出すアクション
-    card_to_play = st.selectbox("出すカードを選んでください", st.session_state.player_hand)
-    if st.button("カードを出す"):
-        if can_play(card_to_play, st.session_state.table_cards):
+    # 最初に出すカードは「七」のカード
+    sevens_in_hand = [card for card in st.session_state.player_hand if card.startswith('7')]
+    
+    if len(sevens_in_hand) > 0:
+        # プレイヤーが「七」のカードを出せる
+        card_to_play = st.selectbox("出す七のカードを選んでください", sevens_in_hand)
+        if st.button("カードを出す"):
             st.session_state.player_hand.remove(card_to_play)
             st.session_state.table_cards.append(card_to_play)
             st.success(f"カード {card_to_play} を出しました！")
+    else:
+        st.warning("七のカードを出してください！")
+
+    # プレイヤーが隣り合うカードを出す
+    if len(st.session_state.table_cards) > 0:
+        last_card = st.session_state.table_cards[-1]
+        valid_cards = [card for card in st.session_state.player_hand if can_play(card, st.session_state.table_cards)]
+        
+        if valid_cards:
+            card_to_play = st.selectbox("隣り合うカードを選んでください", valid_cards)
+            if st.button("カードを出す"):
+                st.session_state.player_hand.remove(card_to_play)
+                st.session_state.table_cards.append(card_to_play)
+                st.success(f"カード {card_to_play} を出しました！")
         else:
-            st.error("そのカードは出せません。隣のランクのカードを出してください。")
+            st.warning("隣り合うカードを選んでください。")
 
     # プレイヤーがカードを引くアクション
     if st.button("カードを引く"):
