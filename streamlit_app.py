@@ -58,8 +58,8 @@ def main():
     
     if len(sevens_in_hand) > 0:
         # プレイヤーが「七」のカードを出せる
-        card_to_play = st.selectbox("出す七のカードを選んでください", sevens_in_hand)
-        if st.button("カードを出す"):
+        card_to_play = st.selectbox("出す七のカードを選んでください", sevens_in_hand, key="seven_card_select")
+        if st.button("カードを出す", key="play_seven_button"):
             st.session_state.player_hand.remove(card_to_play)
             st.session_state.table_cards.append(card_to_play)
             st.success(f"カード {card_to_play} を出しました！")
@@ -72,8 +72,8 @@ def main():
         valid_cards = [card for card in st.session_state.player_hand if can_play(card, st.session_state.table_cards)]
         
         if valid_cards:
-            card_to_play = st.selectbox("隣り合うカードを選んでください", valid_cards)
-            if st.button("カードを出す"):
+            card_to_play = st.selectbox("隣り合うカードを選んでください", valid_cards, key="valid_card_select")
+            if st.button("カードを出す", key="play_valid_button"):
                 st.session_state.player_hand.remove(card_to_play)
                 st.session_state.table_cards.append(card_to_play)
                 st.success(f"カード {card_to_play} を出しました！")
@@ -81,7 +81,7 @@ def main():
             st.warning("隣り合うカードを選んでください。")
 
     # プレイヤーがカードを引くアクション
-    if st.button("カードを引く"):
+    if st.button("カードを引く", key="draw_card_button"):
         if len(st.session_state.deck) > 0:
             drawn_card = st.session_state.deck.pop()
             st.session_state.player_hand.append(drawn_card)
