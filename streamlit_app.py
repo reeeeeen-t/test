@@ -91,5 +91,7 @@ for r in range(ROWS):
 # リセットボタン
 if st.button("リセット"):
     # セッション状態をリセット
-    st.session_state.clear()  # すべてのセッション状態をクリア
-    st.experimental_rerun()  # アプリを再起動
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    # 手動でページをリフレッシュするようにユーザーに通知
+    st.write("セッションをリセットしました。ページを更新してください。")
